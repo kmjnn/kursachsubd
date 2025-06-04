@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Пользователи</title>
+</head>
+<body>
+    <h1>Управление пользователями</h1>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Логин</th>
+            <th>Роль</th>
+        </tr>
+        {% for user in users %}
+        <tr>
+            <td>{{ user[0] }}</td>
+            <td>{{ user[1] }}</td>
+            <td>{{ user[2] }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    <a href="/">На главную</a>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Оформление заказа{% endblock %}
+
+{% block content %}
+<div class="row justify-content-md-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm mb-5 rounded">
+            <div class="card-header"><strong>Оформление заказа</strong></div>
+            <div class="card-body">
+                <h5>Товары в заказе:</h5>
+                <ul class="list-group list-group-flush">
+                    {% for item in cart_items %}
+                    <li class="list-group-item d-flex justify-content-between align-items-start">
+                        <div class="ms-2 me-auto">
+                            <div class="fw-bold">{{ item.product_name }}</div>
+                            Цена: {{ item.price }} руб.
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <hr />
+                <p class="lead">Сумма заказа: {{ total_price }} руб.</p>
+                <form method="post">
+                    <label for="address">Адрес доставки:</label>
+                    <textarea name="address" class="form-control" rows="3" required></textarea>
+                    <button type="submit" class="btn btn-success mt-3">Оформить заказ</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

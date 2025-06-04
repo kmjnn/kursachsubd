@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Каталог товаров{% endblock %}
+
+{% block content %}
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    {% for product in products %}
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <img src="https://via.placeholder.com/300x200" alt="{{ product.product_name }}" class="card-img-top">
+            <div class="card-body">
+                <h5 class="card-title">{{ product.product_name }}</h5>
+                <p class="card-text">{{ product.product_type }}</p>
+                <p class="card-text fw-bold">Цена: {{ product.price }} руб.</p>
+                <a href="/add-to-cart/{{ product.product_id }}" class="btn btn-outline-primary">Добавить в корзину</a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}
