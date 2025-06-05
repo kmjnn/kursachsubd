@@ -6,59 +6,62 @@
 <div class="container mt-4">
     <h2>Управление заказами</h2>
     
+    {% if not orders_data %}
+    <div class="alert alert-info">Нет доступных заказов</div>
+    {% else %}
     <table class="table table-striped">
         <thead>
             <tr>
-                <th>ID заказа</th>
+                <th>ID</th>
                 <th>Клиент</th>
                 <th>Курьер</th>
-                <th>Стоимость</th>
+                <th>Сумма</th>
                 <th>Адрес</th>
                 <th>Статус</th>
+                <th>Товары</th>
                 <th>Действия</th>
             </tr>
         </thead>
         <tbody>
-            {% for data in orders_data %}
-            {% set order = data.order %}
+            {% for order in orders_data %}
             <tr>
                 <td>{{ order.order_id }}</td>
+                <td>{{ order.client }}</td>
                 <td>
-                    {{ data.client.username if data.client else 'Неизвестен' }}
-                </td>
-                <td>
-                    {% if data.courier %}
-                        {{ data.courier.username }}
+                    {% if order.courier != 'Не назначен' %}
+                        {{ order.courier }}
                     {% else %}
                         <form action="/admin/order/{{ order.order_id }}/assign" method="POST">
                             <select name="courier_id" class="form-select form-select-sm">
-                                <option value="">-- Отменить назначение --</option>
-                                {% for courier in available_couriers %}
+                                <option value="">-- Выберите --</option>
+                                {% for courier in order.available_couriers %}
                                 <option value="{{ courier.id }}">{{ courier.username }}</option>
                                 {% endfor %}
                             </select>
-    <button type="submit" class="btn btn-sm btn-primary mt-1">Сохранить</button>
-</form>
+                            <button type="submit" class="btn btn-sm btn-primary mt-1">Назначить</button>
+                        </form>
                     {% endif %}
                 </td>
                 <td>{{ order.order_cost }} руб.</td>
                 <td>{{ order.delivery_address }}</td>
+                <td>{{ order.status }}</td>
                 <td>
-                    {% if data.courier %}
-                        Назначен
-                    {% else %}
-                        Ожидает курьера
-                    {% endif %}
+                    <ul class="list-unstyled">
+                        {% for product in order.products %}
+                        <li>{{ product.name }} ({{ product.quantity }} × {{ product.price }} руб.)</li>
+                        {% endfor %}
+                    </ul>
                 </td>
                 <td>
                     <a href="/admin/orders/{{ order.order_id }}" class="btn btn-sm btn-info">Подробности</a>
                     <form action="/admin/orders/delete/{{ order.order_id }}" method="POST" style="display:inline;">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Вы уверены?')">Удалить</button>
+                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Удалить заказ?')">Удалить</button>
                     </form>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+    {% endif %}
 </div>
 {% endblock %}

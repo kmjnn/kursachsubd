@@ -7,7 +7,7 @@
     <h2>Управление товарами</h2>
     
     <div class="mb-3">
-        <a href="/admin/products/add" class="btn btn-success">Добавить товар</a>
+        <a href="/admin/product/add" class="btn btn-success">Добавить товар</a>
     </div>
     
     <table class="table table-striped">
@@ -21,15 +21,15 @@
             </tr>
         </thead>
         <tbody>
-            {% for product in products %}
+            {% for product in product %}
             <tr>
                 <td>{{ product.product_id }}</td>
                 <td>{{ product.product_name }}</td>
                 <td>{{ product.product_type }}</td>
                 <td>{{ product.price }} руб.</td>
                 <td>
-                    <a href="/admin/products/edit/{{ product.product_id }}" class="btn btn-sm btn-primary">Редактировать</a>
-                    <form action="/admin/products/delete/{{ product.product_id }}" method="POST" style="display:inline;">
+                    <a href="/admin/product/edit/{{ product.product_id }}" class="btn btn-sm btn-primary">Редактировать</a>
+                    <form action="/admin/product/delete/{{ product.product_id }}" method="POST" style="display:inline;">
                         <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Вы уверены?')">Удалить</button>
                     </form>
                 </td>

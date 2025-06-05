@@ -1,3 +1,4 @@
+import datetime
 from decimal import Decimal
 from flask import Flask, render_template, redirect, request, flash, session, url_for
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -26,12 +27,12 @@ def admin_dashboard():
         return redirect(url_for('index'))
     
     users = Session.query(User).all()
-    products = Session.query(Product).all()
+    product = Session.query(Product).all()
     orders = Session.query(Orders).all()
     
     return render_template('admin_dashboard.html', 
                          users=users, 
-                         products=products, 
+                         product=product, 
                          orders=orders)
 
 @app.route('/courier/orders')
@@ -40,70 +41,117 @@ def courier_orders():
         flash('Доступ запрещён', 'danger')
         return redirect(url_for('index'))
     
-    # Текущие активные заказы курьера
-    active_orders = Session.query(Orders).filter(
-        Orders.courier_id == session['user_id'],
-        Orders.status == 'assigned'
-    ).order_by(Orders.created_at.desc()).all()
+    try:
+        courier_id = session['user_id']
+        
+        # Получаем активные и завершенные заказы
+        active_orders = Session.query(Orders).filter(
+            Orders.courier_id == courier_id,
+            Orders.status.in_(['pending', 'assigned', 'in_progress'])  # Добавлены статусы
+        ).order_by(Orders.created_at.desc()).all()
+        
+        completed_orders = Session.query(Orders).filter(
+            Orders.courier_id == courier_id,
+            Orders.status == 'completed'
+        ).order_by(Orders.created_at.desc()).limit(10).all()
+        
+        
+        # Формируем данные для отображения
+        def prepare_order_data(orders):
+            result = []
+            for order in orders:
+                client = Session.query(User).get(order.client_id)
+                contents = Session.query(OrderContent).filter_by(order_id=order.order_id).all()
+                
+                products = []
+                for content in contents:
+                    product = Session.query(Product).get(content.product_id)
+                    if product:
+                        products.append({
+                            'name': product.product_name,
+                            'quantity': content.quantity,
+                            'price': product.price
+                        })
+                
+                result.append({
+                    'order_id': order.order_id,
+                    'client': client.username if client else 'Неизвестен',
+                    'address': order.delivery_address,
+                    'cost': order.order_cost,
+                    'status': order.status,
+                    'created_at': order.created_at.strftime('%d.%m.%Y %H:%M'),
+                    'products': products
+                })
+            return result
+        
+        return render_template('courier_orders.html',
+                            active_orders=prepare_order_data(active_orders),
+                            completed_orders=prepare_order_data(completed_orders))
     
-    # Завершенные заказы курьера
-    completed_orders = Session.query(Orders).filter(
-        Orders.courier_id == session['user_id'],
-        Orders.status == 'completed'
-    ).order_by(Orders.created_at.desc()).all()
+    except Exception as e:
+        print(f"Ошибка при загрузке заказов курьера: {e}")
+        flash('Ошибка при загрузке заказов', 'danger')
+        return redirect(url_for('index'))
     
-    # Получаем дополнительную информацию о заказах
-    def get_order_details(orders):
-        result = []
-        for order in orders:
-            client = Session.query(User).get(order.client_id)
-            contents = Session.query(OrderContent).filter_by(order_id=order.order_id).all()
-            products = []
-            for content in contents:
-                product = Session.query(Product).get(content.product_id)
-                if product:
-                    products.append({
-                        'product': product,
-                        'quantity': content.quantity
-                    })
-            
-            result.append({
-                'order': order,
-                'client': client,
-                'products': products
-            })
-        return result
-    
-    return render_template('courier_orders.html',
-                         active_orders=get_order_details(active_orders),
-                         completed_orders=get_order_details(completed_orders))
-
-@app.route('/order/<int:order_id>/complete')
-def complete_order(order_id):
+@app.route('/courier/order/<int:order_id>/start')
+def start_delivery(order_id):
     if not session.get('logged_in') or session.get('user_role') != 'courier':
         flash('Доступ запрещён', 'danger')
         return redirect(url_for('index'))
     
-    order = Session.query(Orders).get(order_id)
-    if not order or order.courier_id != session['user_id']:
-        flash('Заказ не найден или не назначен вам', 'danger')
-        return redirect(url_for('courier_orders'))
-    
     try:
-        order.status = 'completed'
+        order = Session.query(Orders).filter_by(  # Исправлено на Orders
+            order_id=order_id,
+            courier_id=session['user_id']
+        ).first()
+        
+        if not order:
+            flash('Заказ не найден или не назначен вам', 'danger')
+            return redirect(url_for('courier_orders'))
+        
+        order.status = 'in_progress'
         Session.commit()
-        flash('Заказ успешно завершён!', 'success')
+        flash('Заказ взят в работу', 'success')
+    
     except Exception as e:
         Session.rollback()
-        flash('Ошибка при завершении заказа', 'danger')
-        print(f"Ошибка завершения заказа: {e}")
+        print(f"Ошибка при старте доставки: {e}")
+        flash('Ошибка при обновлении статуса', 'danger')
+    
+    return redirect(url_for('courier_orders'))
+
+@app.route('/courier/order/<int:order_id>/complete')
+def complete_delivery(order_id):
+    if not session.get('logged_in') or session.get('user_role') != 'courier':
+        flash('Доступ запрещён', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        order = Session.query(order).filter_by(
+            order_id=order_id,
+            courier_id=session['user_id']
+        ).first()
+        
+        if not order:
+            flash('Заказ не найден или не назначен вам', 'danger')
+            return redirect(url_for('courier_orders'))
+        
+        order.status = 'completed'
+        order.completed_at = datetime.utcnow()
+        Session.commit()
+        flash('Заказ успешно завершен', 'success')
+    
+    except Exception as e:
+        Session.rollback()
+        print(f"Ошибка при завершении заказа: {e}")
+        flash('Ошибка при обновлении статуса', 'danger')
     
     return redirect(url_for('courier_orders'))
 
 @app.route('/catalog')
 def catalog():
-    products = Session.query(Product).all()
-    return render_template('catalog.html', products=products)
+    product = Session.query(Product).all()
+    return render_template('catalog.html', product=product)
 
 @app.route('/remove-from-cart/<int:product_id>')
 def remove_from_cart(product_id):
@@ -229,10 +277,9 @@ def view_cart():
         for product_id, quantity in session['cart'].items():
             product = Session.query(Product).get(int(product_id))
             if product:
-                item_total = float(product.price) * quantity
+                item_total = float(product.price)
                 cart_items.append({
                     'product': product,
-                    'quantity': quantity,
                     'item_total': item_total
                 })
                 total_price += item_total
@@ -282,7 +329,6 @@ def checkout():
                     order_content = OrderContent(
                         order_id=new_order.order_id,
                         product_id=product.product_id,
-                        quantity=quantity
                     )
                     Session.add(order_content)
             
@@ -319,14 +365,14 @@ def admin_users():
     users = Session.query(User).all()
     return render_template('admin_users.html', users=users)
 
-@app.route('/admin/products')
-def admin_products():
+@app.route('/admin/product')
+def admin_product():
     if not session.get('logged_in') or session.get('user_role') != 'admin':
         flash('Доступ запрещён', category='danger')
         return redirect(url_for('index'))
     
-    products = Session.query(Product).all()
-    return render_template('admin_products.html', products=products)
+    product = Session.query(Product).all()
+    return render_template('admin_products.html', product=product)
 
 @app.route('/admin/orders')
 def admin_orders():
@@ -334,36 +380,52 @@ def admin_orders():
         flash('Доступ запрещён', 'danger')
         return redirect(url_for('index'))
     
-    # Получаем все заказы с информацией о клиентах и курьерах
-    orders = Session.query(Orders).order_by(Orders.created_at.desc()).all()
-    orders_data = []
-    
-    for order in orders:
-        client = Session.query(User).get(order.client_id)
-        courier = Session.query(User).get(order.courier_id) if order.courier_id else None
-        available_couriers = Session.query(User).filter_by(role='courier').all()
+    try:
+        # Получаем все заказы с информацией о клиентах и курьерах
+        orders = Session.query(Orders).order_by(Orders.created_at.desc()).all()
+        orders_data = []
         
-        # Получаем товары в заказе
-        order_contents = Session.query(OrderContent).filter_by(order_id=order.order_id).all()
-        products = []
-        for content in order_contents:
-            product = Session.query(Product).get(content.product_id)
-            if product:
-                products.append({
-                    'product': product,
-                    'quantity': content.quantity
+        for order in orders:
+            try:
+                client = Session.query(User).get(order.client_id)
+                courier = Session.query(User).get(order.courier_id) if order.courier_id else None
+                available_couriers = Session.query(User).filter_by(role='courier').all()
+                
+                # Получаем содержимое заказа
+                order_contents = Session.query(OrderContent).filter_by(order_id=order.order_id).all()
+                products_info = []
+                for content in order_contents:
+                    product = Session.query(Product).get(content.product_id)
+                    if product:
+                        products_info.append({
+                            'name': product.product_name,
+                            'type': product.product_type,
+                            'price': product.price,
+                            'quantity': content.quantity
+                        })
+                
+                orders_data.append({
+                    'order_id': order.order_id,
+                    'order_cost': order.order_cost,
+                    'delivery_address': order.delivery_address,
+                    'status': order.status,
+                    'created_at': order.created_at,
+                    'client': client.username if client else 'Неизвестен',
+                    'courier': courier.username if courier else 'Не назначен',
+                    'available_couriers': available_couriers,
+                    'products': products_info
                 })
+                
+            except Exception as e:
+                print(f"Ошибка обработки заказа {order.order_id if order else 'N/A'}: {e}")
+                continue
         
-        orders_data.append({
-            'order': order,
-            'client': client,
-            'courier': courier,
-            'available_couriers': available_couriers,
-            'products': products
-        })
+        return render_template('admin_orders.html', orders_data=orders_data)
     
-    return render_template('admin_orders.html', orders_data=orders_data)
-
+    except Exception as e:
+        print(f"Ошибка при получении заказов: {e}")
+        flash('Произошла ошибка при загрузке заказов', 'danger')
+        return redirect(url_for('admin_dashboard'))
 
 @app.route('/admin/orders/<int:order_id>')
 def admin_order_details(order_id):
@@ -381,13 +443,13 @@ def admin_order_details(order_id):
     
     # Получаем содержимое заказа
     order_contents = Session.query(OrderContent).filter_by(order_id=order_id).all()
-    products = [Session.query(Product).get(oc.product_id) for oc in order_contents]
+    product = [Session.query(Product).get(oc.product_id) for oc in order_contents]
     
     return render_template('admin_order_details.html', 
                          order=order,
                          client=client,
                          courier=courier,
-                         products=products)
+                         product=product)
 
 @app.route('/admin/order/<int:order_id>/assign', methods=['POST'])
 def assign_courier(order_id):
@@ -404,7 +466,6 @@ def assign_courier(order_id):
             flash('Заказ не найден', category='danger')
             return redirect(url_for('admin_orders'))
         
-        # Проверяем, что курьер существует, если указан
         if courier_id:
             courier = db_session.query(User).get(courier_id)
             if not courier or courier.role != 'courier':
@@ -412,6 +473,7 @@ def assign_courier(order_id):
                 return redirect(url_for('admin_orders'))
         
         order.courier_id = courier_id if courier_id else None
+        order.status = 'assigned'  # Добавьте эту строку для изменения статуса
         db_session.commit()
         
         if courier_id:
@@ -428,7 +490,7 @@ def assign_courier(order_id):
     
     return redirect(url_for('admin_orders'))
 
-@app.route('/admin/products/add', methods=['GET', 'POST'])
+@app.route('/admin/product/add', methods=['GET', 'POST'])
 def admin_add_product():
     if not session.get('logged_in') or session.get('user_role') != 'admin':
         flash('Доступ запрещён', category='danger')
@@ -445,7 +507,7 @@ def admin_add_product():
             db_session.add(new_product)
             db_session.commit()  # Важно: не забываем commit!
             flash('Товар успешно добавлен!', category='success')
-            return redirect(url_for('admin_products'))
+            return redirect(url_for('admin_product'))
         except Exception as e:
             print(f"Ошибка при добавлении товара: {e}")
             flash('Ошибка при добавлении товара', category='danger')
@@ -453,7 +515,7 @@ def admin_add_product():
     return render_template('admin_add_product.html')
 
 # Маршрут для редактирования товара
-@app.route('/admin/products/edit/<int:product_id>', methods=['GET', 'POST'])
+@app.route('/admin/product/edit/<int:product_id>', methods=['GET', 'POST'])
 def admin_edit_product(product_id):
     if not session.get('logged_in') or session.get('user_role') != 'admin':
         flash('Доступ запрещён', category='danger')
@@ -463,7 +525,7 @@ def admin_edit_product(product_id):
     
     if not product:
         flash('Товар не найден', category='danger')
-        return redirect(url_for('admin_products'))
+        return redirect(url_for('admin_product'))
     
     if request.method == 'POST':
         try:
@@ -472,7 +534,7 @@ def admin_edit_product(product_id):
             product.price = request.form['price']
             Session.commit()
             flash('Товар успешно обновлён!', category='success')
-            return redirect(url_for('admin_products'))
+            return redirect(url_for('admin_product'))
         except Exception as e:
             print(e)
             flash('Ошибка при обновлении товара', category='danger')
@@ -480,7 +542,7 @@ def admin_edit_product(product_id):
     return render_template('admin_edit_product.html', product=product)
 
 # Маршрут для удаления товара
-@app.route('/admin/products/delete/<int:product_id>', methods=['POST'])
+@app.route('/admin/product/delete/<int:product_id>', methods=['POST'])
 def admin_delete_product(product_id):
     if not session.get('logged_in') or session.get('user_role') != 'admin':
         flash('Доступ запрещён', category='danger')
@@ -499,7 +561,7 @@ def admin_delete_product(product_id):
     else:
         flash('Товар не найден', category='danger')
     
-    return redirect(url_for('admin_products'))
+    return redirect(url_for('admin_product'))
 
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
@@ -563,6 +625,8 @@ def admin_edit_user(user_id):
             print(f"Ошибка обновления пользователя: {e}")
     
     return render_template('admin_edit_user.html', user=user)
+
+
 
 if __name__ == '__main__':
     app.run(debug=True)
