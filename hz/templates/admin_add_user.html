@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Добавление пользователя{% endblock %}
+
+{% block content %}
+<div class="row justify-content-md-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm mb-5 rounded">
+            <div class="card-header"><strong>Добавление пользователя</strong></div>
+            <div class="card-body">
+                <form method="post">
+                    {{ form.hidden_tag() }}
+                    <div class="mb-3">
+                        {{ form.username.label }}
+                        {{ form.username(class="form-control", placeholder="Имя пользователя") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.email.label }}
+                        {{ form.email(class="form-control", placeholder="Email") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.password.label }}
+                        {{ form.password(class="form-control", placeholder="Пароль") }}
+                    </div>
+                    <div class="mb-3">
+                        {{ form.role.label }}
+                        {{ form.role(class="form-select") }}
+                    </div>
+                    <button type="submit" class="btn btn-success">Создать пользователя</button>
+                    <a href="/admin/users" class="btn btn-secondary">Отмена</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

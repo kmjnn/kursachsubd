@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Редактирование пользователя{% endblock %}
+
+{% block content %}
+<div class="row justify-content-md-center">
+    <div class="col-md-6 col-lg-4">
+        <div class="card shadow-sm mb-5 rounded">
+            <div class="card-header"><strong>Редактирование пользователя</strong></div>
+            <div class="card-body">
+                <form method="post">
+                    <input type="hidden" name="_method" value="PUT">
+                    <div class="mb-3">
+                        <label for="username" class="form-label">Имя пользователя</label>
+                        <input type="text" class="form-control" id="username" name="username" value="{{ user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="email" name="email" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="role" class="form-label">Роль</label>
+                        <select class="form-select" id="role" name="role" required>
+                            <option value="client" {% if user.role == 'client' %}selected{% endif %}>Клиент</option>
+                            <option value="courier" {% if user.role == 'courier' %}selected{% endif %}>Курьер</option>
+                            <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Администратор</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Сохранить</button>
+                    <a href="/admin/users" class="btn btn-secondary">Отмена</a>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

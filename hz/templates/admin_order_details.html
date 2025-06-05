@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Детали заказа #{{ order.order_id }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Детали заказа #{{ order.order_id }}</h2>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Информация о заказе</strong>
+        </div>
+        <div class="card-body">
+            <p><strong>Клиент:</strong> {{ client.username if client else 'Неизвестен' }}</p>
+            <p><strong>Курьер:</strong> {{ courier.username if courier else 'Не назначен' }}</p>
+            <p><strong>Стоимость:</strong> {{ order.order_cost }} руб.</p>
+            <p><strong>Адрес доставки:</strong> {{ order.delivery_address }}</p>
+        </div>
+    </div>
+    
+    <div class="card mt-3">
+        <div class="card-header">
+            <strong>Состав заказа</strong>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Товар</th>
+                        <th>Тип</th>
+                        <th>Цена</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in products %}
+                    <tr>
+                        <td>{{ product.product_name }}</td>
+                        <td>{{ product.product_type }}</td>
+                        <td>{{ product.price }} руб.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <div class="mt-3">
+        <a href="/admin/orders" class="btn btn-secondary">Назад к списку</a>
+    </div>
+</div>
+{% endblock %}

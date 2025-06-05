@@ -30,8 +30,15 @@
                 <div class="collapse navbar-collapse" id="navbarNavAltMarkup">
                     <div class="navbar-nav ms-auto">
                         {% if session.get('logged_in') %}
-                            <a class="nav-link active" href="/catalog">Каталог</a>
-                            <a class="nav-link active" href="/orders">Заказы</a>
+                            {% if session.get('user_role') == 'admin' %}
+                                <a class="nav-link active" href="/admin">Админ-панель</a>
+                            {% elif session.get('user_role') == 'courier' %}
+                                <a class="nav-link active" href="/courier/orders">Мои заказы</a>
+                            {% else %}
+                                <a class="nav-link active" href="/catalog">Каталог</a>
+                                <a class="nav-link active" href="/cart">Корзина</a>
+                                <a class="nav-link active" href="/orders">Мои заказы</a>
+                            {% endif %}
                             <a class="nav-link active" href="/logout">Выход</a>
                         {% else %}
                             <a class="nav-link active" href="/login">Вход</a>

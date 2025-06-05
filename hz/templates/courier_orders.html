@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Мои заказы{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Мои заказы</h2>
+    
+    <table class="table table-striped mt-3">
+        <thead>
+            <tr>
+                <th>ID заказа</th>
+                <th>Адрес доставки</th>
+                <th>Стоимость</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.order_id }}</td>
+                <td>{{ order.delivery_address }}</td>
+                <td>{{ order.order_cost }} руб.</td>
+                <td>
+                    <a href="/order/{{ order.order_id }}" class="btn btn-sm btn-info">Подробности</a>
+                    <a href="/order/{{ order.order_id }}/complete" class="btn btn-sm btn-success">Завершить</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

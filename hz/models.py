@@ -57,11 +57,14 @@ class Product(Base):
 
 class Orders(Base):
     __tablename__ = 'orders'
+    
     order_id = Column(Integer, primary_key=True)
-    courier_id = Column(Integer, ForeignKey('couriers.courier_id'), nullable=False)
-    client_id = Column(Integer, ForeignKey('clients.client_id'), nullable=False)
+    courier_id = Column(Integer, ForeignKey('users.id'))
+    client_id = Column(Integer, ForeignKey('users.id'), nullable=False)
     order_cost = Column(Numeric(10, 2), nullable=False)
     delivery_address = Column(String(255), nullable=False)
+    status = Column(String(20), default='pending')  # Добавляем поле статуса
+    created_at = Column(DateTime, default=datetime.utcnow)
 
 class OrderContent(Base):
     __tablename__ = 'order_contents'

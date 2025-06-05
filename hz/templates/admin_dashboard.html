@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Панель администратора{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Панель администратора</h2>
+    
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">Пользователи</div>
+                <div class="card-body">
+                    <p>Всего пользователей: {{ users|length }}</p>
+                    <a href="/admin/users" class="btn btn-primary">Управление</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">Товары</div>
+                <div class="card-body">
+                    <p>Всего товаров: {{ products|length }}</p>
+                    <a href="/admin/products" class="btn btn-primary">Управление</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">Заказы</div>
+                <div class="card-body">
+                    <p>Всего заказов: {{ orders|length }}</p>
+                    <a href="/admin/orders" class="btn btn-primary">Управление</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
