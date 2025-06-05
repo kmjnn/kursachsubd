@@ -41,43 +41,49 @@ def courier_orders():
         flash('Доступ запрещён', 'danger')
         return redirect(url_for('index'))
     
+    db_session = Session()
     try:
         courier_id = session['user_id']
+        print(f"DEBUG: Checking orders for courier {courier_id}")
         
-        # Получаем активные и завершенные заказы
-        active_orders = Session.query(Orders).filter(
+        # Активные заказы (включая pending)
+        active_orders = db_session.query(Orders).filter(
             Orders.courier_id == courier_id,
-            Orders.status.in_(['pending', 'assigned', 'in_progress'])  # Добавлены статусы
+            Orders.status.in_(['pending', 'assigned', 'in_progress'])  # Добавлено 'pending'
         ).order_by(Orders.created_at.desc()).all()
         
-        completed_orders = Session.query(Orders).filter(
+        print(f"DEBUG: Active orders count: {len(active_orders)}")
+        
+        # Завершенные заказы
+        completed_orders = db_session.query(Orders).filter(
             Orders.courier_id == courier_id,
             Orders.status == 'completed'
         ).order_by(Orders.created_at.desc()).limit(10).all()
         
-        
-        # Формируем данные для отображения
-        def prepare_order_data(orders):
+        # Подготовка данных
+        def prepare_orders(orders):
             result = []
             for order in orders:
-                client = Session.query(User).get(order.client_id)
-                contents = Session.query(OrderContent).filter_by(order_id=order.order_id).all()
+                client = db_session.query(User).get(order.client_id)
+                contents = db_session.query(OrderContent).filter_by(
+                    order_id=order.order_id
+                ).all()
                 
                 products = []
                 for content in contents:
-                    product = Session.query(Product).get(content.product_id)
+                    product = db_session.query(Product).get(content.product_id)
                     if product:
                         products.append({
                             'name': product.product_name,
                             'quantity': content.quantity,
-                            'price': product.price
+                            'price': float(product.price)
                         })
                 
                 result.append({
                     'order_id': order.order_id,
                     'client': client.username if client else 'Неизвестен',
                     'address': order.delivery_address,
-                    'cost': order.order_cost,
+                    'cost': float(order.order_cost),
                     'status': order.status,
                     'created_at': order.created_at.strftime('%d.%m.%Y %H:%M'),
                     'products': products
@@ -85,13 +91,15 @@ def courier_orders():
             return result
         
         return render_template('courier_orders.html',
-                            active_orders=prepare_order_data(active_orders),
-                            completed_orders=prepare_order_data(completed_orders))
+                            active_orders=prepare_orders(active_orders),
+                            completed_orders=prepare_orders(completed_orders))
     
     except Exception as e:
         print(f"Ошибка при загрузке заказов курьера: {e}")
         flash('Ошибка при загрузке заказов', 'danger')
         return redirect(url_for('index'))
+    finally:
+        db_session.close()
     
 @app.route('/courier/order/<int:order_id>/start')
 def start_delivery(order_id):
@@ -125,9 +133,10 @@ def complete_delivery(order_id):
     if not session.get('logged_in') or session.get('user_role') != 'courier':
         flash('Доступ запрещён', 'danger')
         return redirect(url_for('index'))
-    
+
+    db_session = Session()
     try:
-        order = Session.query(order).filter_by(
+        order = db_session.query(Orders).filter_by(
             order_id=order_id,
             courier_id=session['user_id']
         ).first()
@@ -137,14 +146,15 @@ def complete_delivery(order_id):
             return redirect(url_for('courier_orders'))
         
         order.status = 'completed'
-        order.completed_at = datetime.utcnow()
-        Session.commit()
+        order.completed_at = datetime.datetime.utcnow()
+        db_session.commit()
         flash('Заказ успешно завершен', 'success')
-    
     except Exception as e:
-        Session.rollback()
+        db_session.rollback()
         print(f"Ошибка при завершении заказа: {e}")
         flash('Ошибка при обновлении статуса', 'danger')
+    finally:
+        db_session.close()
     
     return redirect(url_for('courier_orders'))
 
@@ -393,11 +403,11 @@ def admin_orders():
                 
                 # Получаем содержимое заказа
                 order_contents = Session.query(OrderContent).filter_by(order_id=order.order_id).all()
-                products_info = []
+                product_info = []
                 for content in order_contents:
                     product = Session.query(Product).get(content.product_id)
                     if product:
-                        products_info.append({
+                        product_info.append({
                             'name': product.product_name,
                             'type': product.product_type,
                             'price': product.price,
@@ -413,7 +423,7 @@ def admin_orders():
                     'client': client.username if client else 'Неизвестен',
                     'courier': courier.username if courier else 'Не назначен',
                     'available_couriers': available_couriers,
-                    'products': products_info
+                    'product': product_info
                 })
                 
             except Exception as e:

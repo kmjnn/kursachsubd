@@ -6,6 +6,14 @@
 <div class="container mt-4">
     <h2>Мои заказы</h2>
     
+    <!-- Добавим отладочную информацию -->
+    <div class="alert alert-secondary mb-4">
+        <small>
+            DEBUG: Active orders: {{ active_orders|length }}, 
+            Completed orders: {{ completed_orders|length }}
+        </small>
+    </div>
+    
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
             <a class="nav-link active" data-bs-toggle="tab" href="#active">Активные</a>
@@ -30,7 +38,7 @@
                         <div class="card-body">
                             <p><strong>Клиент:</strong> {{ order.client }}</p>
                             <p><strong>Адрес:</strong> {{ order.address }}</p>
-                            <p><strong>Сумма:</strong> {{ order.cost }} руб.</p>
+                            <p><strong>Сумма:</strong> {{ "%.2f"|format(order.cost) }} руб.</p>
                             <p><strong>Статус:</strong> 
                                 <span class="badge bg-{% if order.status == 'assigned' %}warning{% else %}primary{% endif %}">
                                     {{ 'Назначен' if order.status == 'assigned' else 'В процессе' }}
@@ -39,21 +47,21 @@
                             
                             <h6 class="mt-3">Состав заказа:</h6>
                             <ul class="list-group mb-3">
-                                {% for product in order.products %}
+                                {% for product in order.products %}  <!-- Исправлено с product на products -->
                                 <li class="list-group-item d-flex justify-content-between">
                                     <span>{{ product.name }} × {{ product.quantity }}</span>
-                                    <span>{{ product.price * product.quantity }} руб.</span>
+                                    <span>{{ "%.2f"|format(product.price * product.quantity) }} руб.</span>
                                 </li>
                                 {% endfor %}
                             </ul>
                             
                             <div class="d-grid gap-2">
                                 {% if order.status == 'assigned' %}
-                                <a href="/courier/order/{{ order.order_id }}/start" class="btn btn-primary">
+                                <a href="{{ url_for('start_delivery', order_id=order.order_id) }}" class="btn btn-primary">
                                     Начать доставку
                                 </a>
                                 {% else %}
-                                <a href="/courier/order/{{ order.order_id }}/complete" class="btn btn-success">
+                                <a href="{{ url_for('complete_delivery', order_id=order.order_id) }}" class="btn btn-success">
                                     Завершить доставку
                                 </a>
                                 {% endif %}
@@ -78,12 +86,21 @@
                 <div class="list-group-item">
                     <div class="d-flex w-100 justify-content-between">
                         <h5 class="mb-1">Заказ #{{ order.order_id }}</h5>
-                        <small>{{ order.created_at }}</small>
+                        <small>Завершен: {{ order.completed_at }}</small>
                     </div>
                     <p class="mb-1"><strong>Клиент:</strong> {{ order.client }}</p>
                     <p class="mb-1"><strong>Адрес:</strong> {{ order.address }}</p>
-                    <p class="mb-1"><strong>Сумма:</strong> {{ order.cost }} руб.</p>
-                    <small>Статус: <span class="badge bg-success">Завершен</span></small>
+                    <p class="mb-1"><strong>Сумма:</strong> {{ "%.2f"|format(order.cost) }} руб.</p>
+                    <small class="text-muted">Создан: {{ order.created_at }}</small>
+                    
+                    <div class="mt-2">
+                        <h6>Состав:</h6>
+                        <ul>
+                            {% for product in order.products %}  <!-- Исправлено с product на products -->
+                            <li>{{ product.name }} × {{ product.quantity }} ({{ "%.2f"|format(product.price) }} руб.)</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
                 </div>
                 {% endfor %}
             </div>

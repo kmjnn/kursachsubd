@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Numeric, ForeignKey, Text, DateT
 from sqlalchemy.sql import func
 from datetime import datetime
 import bcrypt
+from sqlalchemy.orm import relationship
 
 Base = declarative_base()
 
@@ -44,8 +45,13 @@ class Orders(Base):
     courier_id = Column(Integer, ForeignKey('users.id'))
     order_cost = Column(Numeric(10, 2), nullable=False)
     delivery_address = Column(Text, nullable=False)
-    status = Column(String(20), default='pending')
+    status = Column(String(20), default='pending')  # pending, assigned, in_progress, completed
     created_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime)
+    
+    # Добавляем связь с клиентом и курьером
+    client = relationship("User", foreign_keys=[client_id])
+    courier = relationship("User", foreign_keys=[courier_id])
 
 class OrderContent(Base):
     __tablename__ = 'order_contents'
