@@ -306,15 +306,17 @@ def checkout():
         flash('Ваша корзина пуста', 'warning')
         return redirect(url_for('catalog'))
     
-    # Подсчет общей стоимости
-    total_price = 0.0
     cart_items = []
+    total_price = 0.0
+    
     for product_id, quantity in session['cart'].items():
         product = Session.query(Product).get(int(product_id))
         if product:
             item_total = float(product.price) * quantity
             cart_items.append({
-                'product': product,
+                'product_id': product.product_id,
+                'product_name': product.product_name,
+                'price': float(product.price),
                 'quantity': quantity,
                 'item_total': item_total
             })
@@ -322,7 +324,6 @@ def checkout():
     
     if request.method == 'POST':
         try:
-            # Создаем заказ (courier_id оставляем NULL)
             new_order = Orders(
                 client_id=session['user_id'],
                 order_cost=total_price,
@@ -330,23 +331,18 @@ def checkout():
                 status='pending'
             )
             Session.add(new_order)
-            Session.flush()  # Чтобы получить order_id
+            Session.flush()
             
-            # Добавляем товары в заказ
-            for product_id, quantity in session['cart'].items():
-                product = Session.query(Product).get(int(product_id))
-                if product:
-                    order_content = OrderContent(
-                        order_id=new_order.order_id,
-                        product_id=product.product_id,
-                    )
-                    Session.add(order_content)
+            for item in cart_items:
+                order_content = OrderContent(
+                    order_id=new_order.order_id,
+                    product_id=item['product_id'],
+                    quantity=item['quantity']
+                )
+                Session.add(order_content)
             
             Session.commit()
-            
-            # Очищаем корзину
             session.pop('cart', None)
-            
             flash('Ваш заказ успешно оформлен!', 'success')
             return redirect(url_for('my_orders'))
         except Exception as e:
@@ -354,7 +350,9 @@ def checkout():
             flash('Произошла ошибка при оформлении заказа', 'danger')
             print(f"Ошибка оформления заказа: {e}")
     
-    return render_template('checkout.html', cart_items=cart_items, total_price=total_price)
+    return render_template('checkout.html',
+                        cart_items=cart_items,
+                        total_price=total_price)
 
 @app.route('/orders')
 def my_orders():
@@ -558,21 +556,61 @@ def admin_delete_product(product_id):
         flash('Доступ запрещён', category='danger')
         return redirect(url_for('index'))
     
-    product = Session.query(Product).get(product_id)
-    
-    if product:
-        try:
-            Session.delete(product)
-            Session.commit()
-            flash('Товар успешно удалён!', category='success')
-        except Exception as e:
-            print(e)
-            flash('Ошибка при удалении товара', category='danger')
-    else:
-        flash('Товар не найден', category='danger')
+    db_session = Session()
+    try:
+        # Начинаем транзакцию
+        db_session.begin()
+        
+        # Удаляем все записи о товаре в заказах
+        db_session.query(OrderContent).filter_by(product_id=product_id).delete()
+        
+        # Удаляем сам товар
+        product = db_session.query(Product).get(product_id)
+        if product:
+            db_session.delete(product)
+            db_session.commit()
+            flash('Товар и связанные данные успешно удалены!', 'success')
+        else:
+            db_session.rollback()
+            flash('Товар не найден', category='danger')
+            
+    except Exception as e:
+        db_session.rollback()
+        print(f"Ошибка при удалении товара: {e}")
+        flash('Ошибка при удалении товара и связанных данных', 'danger')
+    finally:
+        db_session.close()
     
     return redirect(url_for('admin_product'))
 
+@app.route('/admin/orders/delete/<int:order_id>', methods=['POST'])
+def admin_delete_order(order_id):
+    if not session.get('logged_in') or session.get('user_role') != 'admin':
+        flash('Доступ запрещён', 'danger')
+        return redirect(url_for('index'))
+    
+    db_session = Session()
+    try:
+        # Сначала удаляем содержимое заказа
+        db_session.query(OrderContent).filter_by(order_id=order_id).delete()
+        
+        # Затем удаляем сам заказ
+        order = db_session.query(Orders).get(order_id)
+        if order:
+            db_session.delete(order)
+            db_session.commit()
+            flash('Заказ успешно удалён!', 'success')
+        else:
+            flash('Заказ не найден', 'danger')
+    
+    except Exception as e:
+        db_session.rollback()
+        print(f"Ошибка при удалении заказа: {e}")
+        flash('Ошибка при удалении заказа', 'danger')
+    finally:
+        db_session.close()
+    
+    return redirect(url_for('admin_orders'))
 
 @app.route('/admin/users/add', methods=['GET', 'POST'])
 def admin_add_user():

@@ -54,8 +54,11 @@
                 </td>
                 <td>
                     <a href="/admin/orders/{{ order.order_id }}" class="btn btn-sm btn-info">Подробности</a>
-                    <form action="/admin/orders/delete/{{ order.order_id }}" method="POST" style="display:inline;">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Удалить заказ?')">Удалить</button>
+                    <!-- В цикле вывода заказов добавьте: -->
+                     <form action="{{ url_for('admin_delete_order', order_id=order.order_id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Вы уверены?')">
+                            Удалить
+                        </button>
                     </form>
                 </td>
             </tr>

@@ -13,14 +13,17 @@
                     {% for item in cart_items %}
                     <li class="list-group-item d-flex justify-content-between align-items-start">
                         <div class="ms-2 me-auto">
-                            <div class="fw-bold">{{ item.product_name }}</div>
-                            Цена: {{ item.price }} руб.
+                            <div class="fw-bold">{{ item.product_name }} × {{ item.quantity }}</div>
+                            Цена: {{ "%.2f"|format(item.price) }} руб. за шт.
                         </div>
+                        <span class="badge bg-primary rounded-pill">
+                            {{ "%.2f"|format(item.price * item.quantity) }} руб.
+                        </span>
                     </li>
                     {% endfor %}
                 </ul>
                 <hr />
-                <p class="lead">Сумма заказа: {{ total_price }} руб.</p>
+                <p class="lead">Сумма заказа: {{ "%.2f"|format(total_price) }} руб.</p>
                 <form method="post">
                     <label for="address">Адрес доставки:</label>
                     <textarea name="address" class="form-control" rows="3" required></textarea>
